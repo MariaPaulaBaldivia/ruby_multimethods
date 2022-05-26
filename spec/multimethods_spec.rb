@@ -134,7 +134,7 @@ describe 'Multimethods' do
   end
 
   it 'si no existe ningún partial block que matchee dados los parametros explota con no method error' do
-    expect { A.new.concat(['hello', ' world', '!']) }.to raise_error(NoMethodError, 'No existe un multimethod para este metodo')
+    expect { A.new.concat(['hello', ' world', '!']) }.to raise_error(NoMethodError, "Ninguna definicion aplica para los argumentos")
   end
 
   it("Se puede usar un multimethod definido en un modulo") do
@@ -174,16 +174,16 @@ describe 'Multimethods' do
   end
 
   it 'deberia permitir agregar multimethods una vez que la clase ya fue creada' do
-    class B
+    class C
       partial_def :+, [String] do |n| n + 'B' end
     end
 
-    class B
+    class C
       partial_def :+, [Float] do |n| 42 end
     end
 
-    expect(B.new + 'asd').to eq 'asdB'
-    expect(B.new + 3.2).to eq 42
+    expect(C.new + 'asd').to eq 'asdB'
+    expect(C.new + 3.2).to eq 42
   end
 
 =begin
@@ -223,4 +223,43 @@ describe 'Multimethods' do
     expect(Pepita.new.interactuar_con(Entrenador.new).energia).to eq 20
   end
 =end
+
+end
+
+describe("Pruebita de contexto") do
+
+  class Tanque
+
+    def ataca_con_camion(objetivo)
+      "Atacar con camion"
+    end
+
+    def ataca_con_ametralladora(objetivo)
+      "Atacar con ametralladora"
+    end
+
+    partial_def :ataca_a, [Tanque] do |objetivo|
+      self.ataca_con_camion(objetivo)
+    end
+
+    partial_def :ataca_a, [Soldado] do |objetivo|
+      self.ataca_con_ametralladora(objetivo)
+    end
+  end
+
+  class Avion
+    #... implementación de avión
+  end
+
+  class Soldado
+    #... implementación de avión
+  end
+
+  it("deberia funcionar con self") do
+    tanque = Tanque.new
+    soldado = Soldado.new
+
+    expect(tanque.ataca_a(soldado)).to eq("Atacar con ametralladora")
+  end
+
 end
