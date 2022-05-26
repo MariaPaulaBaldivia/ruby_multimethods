@@ -61,7 +61,7 @@ describe "Partial Blocks" do
     end
 
     it("Deberia matchear con multiples parametros") do
-      un_bloque = PartialBlock.new([String, String]) do |s1|
+      un_bloque = PartialBlock.new([String, String]) do |s1,s2|
         "Mucho no importa"
       end
       expect(un_bloque.matches?("s1", "s2")).to be(true)
