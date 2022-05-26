@@ -80,8 +80,147 @@ describe "Partial Blocks" do
     end
 
     it("Deberia arrojar error cuando le paso un tipo que no corresponde") do
-      expect(helloBlock.call(1))
-        .to raise_error("El bloque no coincide con los argumentos")
+      expect{helloBlock.call(1)}.to raise_error("El bloque no coincide con los argumentos")
+    end
+
+    it("Deberia ejecutar con el parametro que le paso") do
+      new_block = PartialBlock.new([Object, Object]) do |left, right|
+        [left, right]
+      end
+      expect(new_block.call(1, "hola")).to eq([1,"hola"])
     end
   end
+end
+
+describe 'Multimethods' do
+  class A
+    partial_def :concat, [String, String] do |s1, s2|
+      s1 + s2
+    end
+
+    partial_def :concat, [String, Integer]  do |s1, n|
+      s1 * n
+    end
+
+    #partial_def :concat, [Array] do |a|
+    #  a.join
+    #end
+
+    partial_def :concat, [Object, Object] do |o1, o2|
+      'Objetos Concatenados'
+    end
+
+    partial_def :concat, [String] do |s1|
+      my_name + s1
+    end
+
+    def my_name
+      'A'
+    end
+  end
+
+  module B
+    partial_def :concat, [Object, Object] do |s1,s2|
+      "Objetos concatenados"
+    end
+    partial_def :concat, [String, Integer] do |s1,n|
+      s1 * n
+    end
+  end
+
+  it 'si existe algun partial block que matchee para los parametros se usa ese partial block' do
+    expect(A.new.concat('hello', ' world')).to eq('hello world')
+    expect(A.new.concat('hello', 3)).to eq('hellohellohello')
+  end
+
+  it 'si no existe ningún partial block que matchee dados los parametros explota con no method error' do
+    expect { A.new.concat(['hello', ' world', '!']) }.to raise_error(NoMethodError, 'No existe un multimethod para este metodo')
+  end
+
+  it("Se puede usar un multimethod definido en un modulo") do
+    una_clase = Class.new
+    una_clase.include(B)
+
+    expect(una_clase.new.concat(1,2)).to eq("Objetos concatenados")
+  end
+
+  it("se puede obtener un multimethod definido") do
+    multimethod = A.multimethod(:concat)
+    expect(multimethod).not_to eq(nil)
+  end
+
+  it("Se pueden conocer que multimethods define una clase") do
+    expect(A.multimethods()).to eq([:concat])
+  end
+
+  it("se pueden conocer que multimethods define un modulo") do
+    expect(A.multimethods()).to eq([:concat])
+  end
+
+  it 'un objeto con multimethod deberia saber responder al metodo asociado a ese multimethod' do
+    expect(A.new.respond_to?(:concat)).to eq true
+  end
+
+  it 'un objeto con multimethod deberia saber responder al metodo asociado a ese multimethod dados ciertos tipos' do
+    expect(A.new.respond_to?(:concat, false, [String, String])).to eq true
+  end
+
+  it 'un objeto con multimethod no deberia saber responder al metodo asociado a ese multimethod dados ciertos tipos que no coinciden a los de su multimethod' do
+    expect(A.new.respond_to?(:concat, false, [String, BasicObject])).to eq false
+  end
+
+  it 'deberia ejecutarse en el contexto del objeto' do
+    expect(A.new.concat('sd')).to eq 'Asd'
+  end
+
+  it 'deberia permitir agregar multimethods una vez que la clase ya fue creada' do
+    class B
+      partial_def :+, [String] do |n| n + 'B' end
+    end
+
+    class B
+      partial_def :+, [Float] do |n| 42 end
+    end
+
+    expect(B.new + 'asd').to eq 'asdB'
+    expect(B.new + 3.2).to eq 42
+  end
+
+=begin
+  context 'multimethods con tipado estructural' do
+    class Pepita
+      attr_accessor :energia
+
+      def initialize
+        @energia = 0
+      end
+
+      partial_def :interactuar_con, [[:ser_comida_por]] do |comida|
+        comida.ser_comida_por(self)
+      end
+
+      partial_def :interactuar_con, [[:entrenar, :alimentar]] do |entrenador|
+        entrenador.entrenar(entrenador.alimentar(self))
+      end
+    end
+
+    class Comida; def ser_comida_por(comensal); comensal.energia += 30; comensal; end ; end
+
+    class Entrenador
+      def alimentar(golondrina); golondrina.interactuar_con(Comida.new); golondrina end
+      def entrenar(golondrina); golondrina.energia -= 10; golondrina end
+    end
+  end
+
+  it 'un objeto deberia poder responder que sabe contestar metodos con tipado estructural' do
+    expect(Pepita.new.respond_to?(:interactuar_con, false, [Comida])).to eq true
+    expect(Pepita.new.respond_to?(:interactuar_con, false, [Entrenador])).to eq true
+    expect(Pepita.new.respond_to?(:interactuar_con, false, [Fixnum])).to eq false
+  end
+
+  it 'un objeto deberia contestar con el multimethod correspondiente' do
+    expect(Pepita.new.interactuar_con(Comida.new).energia).to eq 30
+    expect(Pepita.new.interactuar_con(Entrenador.new).energia).to eq 20
+  end
+=end
 end
